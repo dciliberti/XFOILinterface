@@ -45,3 +45,11 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+
+# XFOIL executables
+xfoil.exe
+/XFOIL/
+
+# Output files
+*.txt
+*.dat
