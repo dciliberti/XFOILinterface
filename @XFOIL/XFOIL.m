@@ -11,12 +11,12 @@ classdef XFOIL < handle
         KeepFiles = false;
         ID
     end
-    
+
     properties (SetAccess = private)
         AirfoilFile = ''
     end
-    
-    
+
+
     methods (Static, Hidden)
         function ID = NewID()
             persistent LastID
@@ -27,7 +27,7 @@ classdef XFOIL < handle
             LastID=ID;
         end
     end
-    
+
     methods (Hidden)
         function CreateActionsFile(this)
             fid = fopen(this.ActionsFile,'wt+');
@@ -37,9 +37,9 @@ classdef XFOIL < handle
             fprintf(fid,'LOAD %s\n',this.AirfoilFile);
             fprintf(fid,'%s\n',this.Actions{:});
             fclose(fid);
-        end       
+        end
     end
-    
+
     methods (Static)
         function DownloadXFOIL
             h = waitbar(0,'Please wait, downloading XFOIL...');
@@ -55,17 +55,17 @@ classdef XFOIL < handle
             unzip(f,TargetPath);
             delete(f);
             addpath(genpath(TargetPath));
-            delete(h);            
+            delete(h);
         end
     end
-    
+
     methods
         function this = XFOIL(XFOILExecutable)
             if nargin == 1 && ~isempty(XFOILExecutable)
                 this.XFOILExecutable = XFOILExecutable;
             end
             this.ID=this.NewID;
-            
+
             if this.ID == 1
                 disp(repmat('-',1,70));
                 disp(' XFOIL - MATLAB interface v1.0');
@@ -75,7 +75,7 @@ classdef XFOIL < handle
                 disp(' for making available this amazing tool for all of us.')
                 disp(repmat('-',1,70));
             end
-            
+
             if isempty(which(this.XFOILExecutable))
                 if ispc
                     ButtonName = questdlg('XFOIL executable not found, should I download it?', 'XFOIL','Yes','No','Yes');
@@ -89,13 +89,13 @@ classdef XFOIL < handle
                 end
             end
         end
-        
+
         function AF = ActionsFile(this)
             AF = sprintf('actions_%i.txt',this.ID);
-        end     
-        
+        end
+
         function run(this)
-            
+
             if ~isa(this.Airfoil,'char')
                 if isa(this.Airfoil,'Airfoil')
                     [d, AirfoilFile] = fileparts(tempname(pwd));
@@ -107,19 +107,19 @@ classdef XFOIL < handle
             else
                 this.AirfoilFile = this.Airfoil;
             end
-            
+
             if ~exist(this.AirfoilFile,'file')
                 error('Airfoil file not found: %s', AirfoilFile)
             end
-            
+
             this.CreateActionsFile;
-                
+
             warning('off','MATLAB:DELETE:FileNotFound')
             for i=1:length(this.PolarFiles)
                 delete(this.PolarFiles{1})
             end
             warning('on','MATLAB:DELETE:FileNotFound')
-            
+
             if ispc
                 if ~exist(fullfile(pwd,this.XFOILExecutable),'file')
                     xfEXE = which(this.XFOILExecutable);
@@ -127,7 +127,7 @@ classdef XFOIL < handle
                     if ~success
                         error('Error when copying XFOIL to current directory: %s',msg)
                     end
-                end                
+                end
                 arg = {'cmd', '/c',sprintf('"%s < %s"',this.XFOILExecutable,this.ActionsFile), '>','nul'};
             else
                 error('Unix version not yet implemented!')
@@ -135,7 +135,7 @@ classdef XFOIL < handle
             PB=java.lang.ProcessBuilder(arg);
             this.Process = PB.start;
         end
-        
+
         function finished = wait(this,timeout)
             tStart = tic;
             finished=false;
@@ -151,40 +151,40 @@ classdef XFOIL < handle
                 pause(0.01)
             end
         end
-        
+
         function kill (this)
             if ~isempty(this.Process)
                 this.Process.destroy;
                 this.Process =[];
             end
         end
-        
+
         function addActions (this, NewActions)
             if ~iscell(NewActions)
                 NewActions={NewActions};
             end
-            
+
             this.Actions = cat(1,this.Actions, NewActions);
         end
-        
+
         function addFiltering (this,Steps)
             NewActions = {''; ''; ''; '';'' ;''; ''; ''; ...
                 'PANE'; 'MDES'; 'FILT 1.00'};
             FiltActions = repmat({'EXEC'},Steps,1);
-            
+
             NewActions = cat(1,NewActions,FiltActions);
             NewActions{end+1} = '';
             NewActions{end+1} = 'PANE';
             this.addActions (NewActions);
         end
-        
+
         function changePaneling (this,NumberOfNodes)%, TeLeDensity, RefinedArea)
             NewActions = {''; ''; ''; '';'' ;''; ''; ''; ...
                 'PPAR'; ['n ' num2str(NumberOfNodes)]; ''; '';...
                 'GDES'; 'CADD'; ''; ''; ''; '';};
             this.addActions (NewActions);
         end
-        
+
         function addOperation (this, Reynolds, Mach, N, Vacc, XTrTop, XTrBottom)
             if nargin<2
                 Reynolds=0;
@@ -204,22 +204,27 @@ classdef XFOIL < handle
             if nargin<7
                 XTrBottom=1;
             end
-            
-            NewActions = {'OPER'; 'VPAR'; ...
-                sprintf('N %1.2f',N); ...
-                sprintf('VACC %1.4f',Vacc); ...
-                'XTR'; sprintf('%1.4f',XTrTop); ...
-                sprintf('%1.4f',XTrBottom); ''; ...
-                sprintf('VISC %1.4f',Reynolds); ...
-                sprintf('MACH %1.6f',Mach)};
-            
+
+            % Fix to run inviscid analysis
+            if Reynolds == inf
+                NewActions = {'OPER'};
+            else % execute viscous analysis
+                NewActions = {'OPER'; 'VPAR'; ...
+                    sprintf('N %1.2f',N); ...
+                    sprintf('VACC %1.4f',Vacc); ...
+                    'XTR'; sprintf('%1.4f',XTrTop); ...
+                    sprintf('%1.4f',XTrBottom); ''; ...
+                    sprintf('VISC %1.4f',Reynolds); ...
+                    sprintf('MACH %1.6f',Mach)};
+            end
+
             this.addActions (NewActions);
         end
-        
+
         function addIter(this,Iter)
             this.addActions(sprintf('ITER %i',Iter))
         end
-        
+
         function addAlpha(this, Alpha,Init)
             if nargin==2 || ~Init
                 if numel(Alpha) == 1
@@ -233,33 +238,33 @@ classdef XFOIL < handle
                 this.addActions({sprintf('ALFA %2.4f',Alpha);'INIT'})
             end
         end
-        
+
         function addCL(this, CL, Init)
             if nargin==2 || ~Init
                 this.addActions(sprintf('CL %2.4f',CL))
             else
                 this.addActions({sprintf('CL %2.4f',CL);'INIT'})
             end
-        end        
-        
+        end
+
         function addPolarFile(this,PolarFile)
             this.addActions({'PACC'; PolarFile; ''});
             this.PolarFiles{end+1} = PolarFile;
         end
-        
+
         function addPressureFile(this,PressureFile)
             this.addActions(sprintf('CPWR %s', PressureFile));
             this.PressureFiles{end+1} = PressureFile;
         end
-        
+
         function addClosePolarFile(this)
             this.addActions({'PACC';''});
         end
-        
+
         function addQuit(this)
             this.addActions({'';'';'';'';'';'';'';'QUIT';''});
         end
-        
+
         function plotPolar(this,Index)
             p1=this.Polars{Index};
             subplot(2,4,1:4)
@@ -278,7 +283,7 @@ classdef XFOIL < handle
             plot(p1.CD,p1.CL)
             xlabel('CD')
             ylabel('CL')
-            
+
             subplot(2,4,7);
             axCLCM = plotyy(p1.Alpha,p1.CL,p1.Alpha,p1.CM);
             ax(2) = axCLCM(1);
@@ -286,16 +291,16 @@ classdef XFOIL < handle
             xlabel('Alpha [deg]')
             ylabel(axCLCM(1),'CL')
             ylabel(axCLCM(2),'CM')
-            
+
             ax(3) = subplot(2,4,8);
             plot(p1.Top_Xtr,p1.CL,'g')
             hold on
             plot(p1.Bot_Xtr,p1.CL,'r')
             xlabel('x_t_r/c')
             ylabel('CL')
-            
+
             linkaxes(ax,'y');
         end
-        
+
     end
 end
