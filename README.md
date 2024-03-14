@@ -7,6 +7,9 @@ My fork includes the possibility to run inviscid analyses and includes MATLAB fu
 
 The main script file is about calculating and visualizing the center of pressure (xcp) and lift coefficients (Cl, Cm) for an airfoil using XFOIL. The script reads polar data from a file and calculates Cl, Cm, and xcp for different angles of attack. The results are then visualized using MATLAB's stackedplot function.
 
+### Example
+![image](https://github.com/dciliberti/XFOILinterface/assets/52099779/76029092-484a-4f7e-adb5-20224eb1f5df)
+
 ## Getting Started
 
 ### Prerequisites
