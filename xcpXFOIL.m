@@ -89,10 +89,11 @@ if finished
     % coordinate of center of pressure w.r.t xref
     xcp = -Cm ./ Cl;
 
+    % Plot resultant lift force vectors
     figure
     plot(x,y,'k-')
     hold on
-    quiver(xcp, zeros(numel(xcp),1), zeros(numel(xcp),1), Cl, 0)
+    quiver(xcp, zeros(numel(xcp),1), -Cl.*sind(aseq), Cl.*cosd(aseq), 0)
     hold off
     axis equal
     xlim([-0.1, ceil(xcp(1)+0.1)]);
