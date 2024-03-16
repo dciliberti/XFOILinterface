@@ -75,7 +75,7 @@ if finished
     % Find center of pressure
     x = CpDataTable{1}.x;   % x coordinates
     y = CpDataTable{1}.y;   % y coordinates
-    xref = 0.0;             % x coordinate of moment reference point
+    xref = 0.25;            % x coordinate of moment reference point
     yref = 0.0;             % y coordinate of moment reference point
     Cl = zeros(numel(aseq),1);
     Cm = zeros(numel(aseq),1);
@@ -86,8 +86,8 @@ if finished
         Cl(c) = trapz(dx,CpData(:,c));
         Cm(c) = trapz(x,-CpData(:,c).*(x-xref)) + trapz(y,-CpData(:,c).*(y-yref));
     end
-    % coordinate of center of pressure w.r.t xref
-    xcp = -Cm ./ Cl;
+    % coordinate of center of pressure
+    xcp = xref - Cm ./ Cl;
 
     % Plot resultant lift force vectors
     figure
@@ -100,13 +100,15 @@ if finished
     title('Lift vector position')
     xlabel('x/c')
 
+    % Plot Cl, Cm and xcp
     figure
     tbl = table(aseq,Cl,Cm,xcp);
     tbl = renamevars(tbl, 'aseq', 'alpha');
     vars = {["Cl", "Cm"], "xcp"};
-    s = stackedplot(tbl,vars,"GridVisible","on");
+    s = stackedplot(tbl,vars,"GridVisible","on","LineWidth",2);
     s.XVariable = 'alpha';
-    s.AxesProperties(2).YLimits = [0, ceil(max(xcp))]; 
+    s.AxesProperties(2).YLimits = [0, ceil(max(xcp))];
+    s.Title = ['x_{ref} = ', num2str(xref)];
 else
     xf.kill;
 end
